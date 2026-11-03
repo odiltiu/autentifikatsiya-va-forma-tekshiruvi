@@ -1,4 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { registerSchema, loginSchema } from '../validation'
 import './auth.css'
 
 /* ── Icons ── */
@@ -57,197 +60,198 @@ function PasswordStrength({ password }) {
 }
 
 /* ── Reusable field ── */
-function Field({ label, required, icon, error, hint, children }) {
+function Field({ id, label, required, icon, error, hint, children }) {
   return (
     <div className={`auth-field${error ? ' has-error' : ''}`}>
-      <label className="auth-label">
-        {label}{required && <span className="auth-required">*</span>}
+      <label className="auth-label" htmlFor={id}>
+        {label}{required && <span className="auth-required" aria-hidden="true">*</span>}
       </label>
       <div className="auth-input-wrap">
-        <span className="auth-icon">{icon}</span>
+        <span className="auth-icon" aria-hidden="true">{icon}</span>
         {children}
       </div>
-      {error  && <span className="auth-error">{error}</span>}
-      {!error && hint && <span className="auth-hint">{hint}</span>}
+      {error && <span className="auth-error" id={`${id}-error`} role="alert">{error}</span>}
+      {!error && hint && <span className="auth-hint" id={`${id}-hint`}>{hint}</span>}
     </div>
+  )
+}
+
+// Maydonga xato/izoh matnini bog'lash (ekran o'quvchilar uchun)
+const describe = (id, errors, hint) => ({
+  id,
+  'aria-invalid': errors[id] ? 'true' : undefined,
+  'aria-describedby': errors[id] ? `${id}-error` : hint ? `${id}-hint` : undefined,
+})
+
+function PasswordInput({ id, show, onToggle, ...rest }) {
+  return (
+    <>
+      <input
+        id={id}
+        className="auth-input"
+        type={show ? 'text' : 'password'}
+        style={{ paddingRight: 44 }}
+        autoComplete={id === 'password' ? 'new-password' : 'current-password'}
+        {...rest}
+      />
+      <button type="button" className="auth-eye" onClick={onToggle} aria-label={show ? 'Parolni yashirish' : "Parolni ko'rsatish"}>
+        <EyeIcon open={show} />
+      </button>
+    </>
+  )
+}
+
+function Socials({ onClick }) {
+  return (
+    <>
+      <div className="auth-divider"><span>yoki</span></div>
+      <div className="auth-socials">
+        <button type="button" className="auth-social" onClick={() => onClick('Google')}><GoogleIcon /> Google</button>
+        <button type="button" className="auth-social" onClick={() => onClick('GitHub')}><GithubIcon /> GitHub</button>
+      </div>
+    </>
+  )
+}
+
+const REGISTER_DEFAULTS = { fullName: '', username: '', email: '', phone: '', age: '', password: '', terms: false }
+
+function RegisterForm({ onSuccess, onSocial }) {
+  const [showPw, setShowPw] = useState(false)
+  const {
+    register, handleSubmit, control, reset,
+    formState: { errors, isSubmitting },
+  } = useForm({ resolver: zodResolver(registerSchema), defaultValues: REGISTER_DEFAULTS, mode: 'onTouched' })
+  const password = useWatch({ control, name: 'password' })
+
+  const onSubmit = async (values) => {
+    // Bu yerda serverga so'rov yuboriladi. Hozircha demo: qisqa kutish
+    await new Promise((r) => setTimeout(r, 400))
+    onSuccess(`Xush kelibsiz, ${values.fullName}! Ro'yxatdan o'tish muvaffaqiyatli.`)
+    reset(REGISTER_DEFAULTS)
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <Field id="fullName" label="To'liq ism" required icon={<UserIcon />} error={errors.fullName?.message}>
+        <input className="auth-input" type="text" placeholder="Ali Valiyev" autoComplete="name" {...describe('fullName', errors)} {...register('fullName')} />
+      </Field>
+
+      <div className="auth-row">
+        <Field id="username" label="Foydalanuvchi nomi" required icon={<AtIcon />} error={errors.username?.message} hint="3-20 belgi">
+          <input className="auth-input" type="text" placeholder="ali_v" autoComplete="username" {...describe('username', errors, true)} {...register('username')} />
+        </Field>
+        <Field id="age" label="Yosh" required icon={<CakeIcon />} error={errors.age?.message}>
+          <input className="auth-input" type="number" placeholder="20" min="13" max="100" inputMode="numeric" {...describe('age', errors)} {...register('age')} />
+        </Field>
+      </div>
+
+      <Field id="email" label="Email" required icon={<MailIcon />} error={errors.email?.message}>
+        <input className="auth-input" type="email" placeholder="ali@example.com" autoComplete="email" {...describe('email', errors)} {...register('email')} />
+      </Field>
+
+      <Field id="phone" label="Telefon" required icon={<PhoneIcon />} error={errors.phone?.message} hint="+998 XX XXX XX XX">
+        <input className="auth-input" type="tel" placeholder="+998 90 123 45 67" autoComplete="tel" {...describe('phone', errors, true)} {...register('phone')} />
+      </Field>
+
+      <Field id="password" label="Parol" required icon={<LockIcon />} error={errors.password?.message}>
+        <PasswordInput id="password" show={showPw} onToggle={() => setShowPw((v) => !v)} placeholder="Kamida 8 ta belgi" {...describe('password', errors)} {...register('password')} />
+      </Field>
+      <PasswordStrength password={password} />
+
+      {/* Tuzatildi: oldin label'ga onClick qo'yilgan edi — ichidagi checkbox bosishni qayta yuborib,
+          holat ikki marta almashardi va belgini qo'yib bo'lmasdi */}
+      <label className="auth-terms" htmlFor="terms">
+        <input id="terms" type="checkbox" {...register('terms')} aria-invalid={errors.terms ? 'true' : undefined} />
+        <span className="auth-checkbox" aria-hidden="true"><CheckIcon /></span>
+        <span>Foydalanish shartlari va maxfiylik siyosatini qabul qilaman</span>
+      </label>
+      {errors.terms && <span className="auth-error" role="alert">{errors.terms.message}</span>}
+
+      <button type="submit" className="auth-submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Yuborilmoqda...' : "Ro'yxatdan o'tish"}
+      </button>
+      <Socials onClick={onSocial} />
+    </form>
+  )
+}
+
+function LoginForm({ onSuccess, onSocial }) {
+  const [showPw, setShowPw] = useState(false)
+  const {
+    register, handleSubmit, reset,
+    formState: { errors, isSubmitting },
+  } = useForm({ resolver: zodResolver(loginSchema), defaultValues: { login: '', password: '' }, mode: 'onTouched' })
+
+  const onSubmit = async (values) => {
+    await new Promise((r) => setTimeout(r, 400))
+    onSuccess(`${values.login}, tizimga kirdingiz (demo).`)
+    reset()
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <Field id="login" label="Email yoki username" required icon={<MailIcon />} error={errors.login?.message}>
+        <input className="auth-input" type="text" placeholder="ali@example.com" autoComplete="username" {...describe('login', errors)} {...register('login')} />
+      </Field>
+      <Field id="loginPassword" label="Parol" required icon={<LockIcon />} error={errors.password?.message}>
+        <PasswordInput id="loginPassword" show={showPw} onToggle={() => setShowPw((v) => !v)} placeholder="Parolingizni kiriting" aria-invalid={errors.password ? 'true' : undefined} {...register('password')} />
+      </Field>
+      <button type="submit" className="auth-submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Tekshirilmoqda...' : 'Kirish'}
+      </button>
+      <Socials onClick={onSocial} />
+    </form>
   )
 }
 
 /* ── AuthPage ── */
 export default function AuthPage() {
-  const [tab, setTab]       = useState('register')
-  const [showPw, setShowPw] = useState(false)
-  const [agreed, setAgreed] = useState(false)
-  const [errors, setErrors] = useState({})
+  const [tab, setTab] = useState('register')
+  const [notice, setNotice] = useState(null)
 
-  const [form, setForm] = useState({
-    fullname: '', username: '', email: '',
-    phone: '', age: '', password: '',
-  })
-
-  const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }))
-
-  function validate() {
-    const e = {}
-    if (!form.fullname.trim())                       e.fullname = "Ism majburiy"
-    if (!form.username.trim())                       e.username = "Foydalanuvchi nomi majburiy"
-    else if (form.username.length < 3)               e.username = "Kamida 3 ta belgi"
-    if (!form.email.trim())                          e.email    = "Email majburiy"
-    else if (!/\S+@\S+\.\S+/.test(form.email))      e.email    = "Email noto'g'ri"
-    if (!form.phone.trim())                          e.phone    = "Telefon majburiy"
-    if (!form.age)                                   e.age      = "Yosh majburiy"
-    else if (Number(form.age) < 13 || Number(form.age) > 100) e.age = "13 – 100 orasida"
-    if (!form.password)                              e.password = "Parol majburiy"
-    else if (form.password.length < 8)               e.password = "Kamida 8 ta belgi"
-    if (!agreed)                                     e.terms    = "Shartlarni qabul qiling"
-    return e
+  const switchTab = (next) => {
+    setTab(next)
+    setNotice(null)
   }
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    const errs = validate()
-    setErrors(errs)
-    if (Object.keys(errs).length === 0)
-      alert(`Xush kelibsiz, ${form.fullname}!\nRo'yxatdan o'tish muvaffaqiyatli!`)
-  }
+  const onSuccess = (text) => setNotice({ type: 'success', text })
+  const onSocial = (name) => setNotice({ type: 'info', text: `${name} orqali kirish hali ulanmagan.` })
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-
-        {/* ── Header ── */}
         <div className="auth-header">
-          <div className="auth-logo">
+          <div className="auth-logo" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="white">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
           <h1>Xush kelibsiz</h1>
-          <p>Davom etish uchun hisobingizga kiring</p>
+          <p>{tab === 'register' ? "Yangi hisob yarating" : 'Davom etish uchun hisobingizga kiring'}</p>
         </div>
 
-        {/* ── Tabs ── */}
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={`auth-tab${tab === 'register' ? ' active' : ''}`}
-            onClick={() => setTab('register')}
-          >
+        <div className="auth-tabs" role="tablist" aria-label="Kirish turi">
+          <button type="button" role="tab" aria-selected={tab === 'register'} className={`auth-tab${tab === 'register' ? ' active' : ''}`} onClick={() => switchTab('register')}>
             Ro'yxatdan o'tish
           </button>
-          <button
-            type="button"
-            className={`auth-tab${tab === 'login' ? ' active' : ''}`}
-            onClick={() => setTab('login')}
-          >
+          <button type="button" role="tab" aria-selected={tab === 'login'} className={`auth-tab${tab === 'login' ? ' active' : ''}`} onClick={() => switchTab('login')}>
             Kirish
           </button>
         </div>
 
-        {/* ── Body ── */}
         <div className="auth-body">
-
-          {tab === 'register' && (
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
-
-              <Field label="To'liq ism" required icon={<UserIcon />} error={errors.fullname}>
-                <input className="auth-input" type="text" placeholder="Shokhrukh Karimov"
-                  value={form.fullname} onChange={set('fullname')} />
-              </Field>
-
-              <div className="auth-row">
-                <Field label="Foydalanuvchi nomi" required icon={<AtIcon />} error={errors.username} hint="3+ belgi">
-                  <input className="auth-input" type="text" placeholder="shokhrukh_k"
-                    value={form.username} onChange={set('username')} />
-                </Field>
-                <Field label="Yosh" required icon={<CakeIcon />} error={errors.age}>
-                  <input className="auth-input" type="number" placeholder="20" min="13" max="100"
-                    value={form.age} onChange={set('age')} />
-                </Field>
-              </div>
-
-              <Field label="Email" required icon={<MailIcon />} error={errors.email}>
-                <input className="auth-input" type="email" placeholder="shokhrukh@example.com"
-                  value={form.email} onChange={set('email')} />
-              </Field>
-
-              <Field label="Telefon" required icon={<PhoneIcon />} error={errors.phone} hint="+998 XX XXX XX XX">
-                <input className="auth-input" type="tel" placeholder="+998 90 123 45 67"
-                  value={form.phone} onChange={set('phone')} />
-              </Field>
-
-              <Field label="Parol" required icon={<LockIcon />} error={errors.password}>
-                <input
-                  className="auth-input"
-                  type={showPw ? 'text' : 'password'}
-                  placeholder="Kamida 8 ta belgi"
-                  style={{ paddingRight: 44 }}
-                  value={form.password}
-                  onChange={set('password')}
-                />
-                <button type="button" className="auth-eye" onClick={() => setShowPw(v => !v)}>
-                  <EyeIcon open={showPw} />
-                </button>
-              </Field>
-              <PasswordStrength password={form.password} />
-
-              <label className="auth-terms" onClick={() => setAgreed(v => !v)}>
-                <input type="checkbox" checked={agreed} readOnly />
-                <span className="auth-checkbox"><CheckIcon /></span>
-                <span>
-                  <a href="#">Foydalanish shartlari</a> va <a href="#">Maxfiylik siyosati</a>ni qabul qilaman
-                </span>
-              </label>
-              {errors.terms && <span className="auth-error">{errors.terms}</span>}
-
-              <button type="submit" className="auth-submit">Ro'yxatdan o'tish</button>
-
-              <div className="auth-divider"><span>yoki</span></div>
-
-              <div className="auth-socials">
-                <button type="button" className="auth-social"><GoogleIcon /> Google</button>
-                <button type="button" className="auth-social"><GithubIcon /> GitHub</button>
-              </div>
-            </form>
-          )}
-
-          {tab === 'login' && (
-            <form className="auth-form" onSubmit={e => e.preventDefault()}>
-              <Field label="Email yoki username" required icon={<MailIcon />}>
-                <input className="auth-input" type="text" placeholder="shokhrukh@example.com" />
-              </Field>
-              <Field label="Parol" required icon={<LockIcon />}>
-                <input
-                  className="auth-input"
-                  type={showPw ? 'text' : 'password'}
-                  placeholder="Parolingizni kiriting"
-                  style={{ paddingRight: 44 }}
-                />
-                <button type="button" className="auth-eye" onClick={() => setShowPw(v => !v)}>
-                  <EyeIcon open={showPw} />
-                </button>
-              </Field>
-              <div className="auth-forgot">
-                <a href="#">Parolni unutdingizmi?</a>
-              </div>
-              <button type="submit" className="auth-submit">Kirish</button>
-              <div className="auth-divider"><span>yoki</span></div>
-              <div className="auth-socials">
-                <button type="button" className="auth-social"><GoogleIcon /> Google</button>
-                <button type="button" className="auth-social"><GithubIcon /> GitHub</button>
-              </div>
-            </form>
-          )}
+          <div aria-live="polite">
+            {notice && <p className={`auth-notice ${notice.type}`}>{notice.text}</p>}
+          </div>
+          {tab === 'register'
+            ? <RegisterForm onSuccess={onSuccess} onSocial={onSocial} />
+            : <LoginForm onSuccess={onSuccess} onSocial={onSocial} />}
         </div>
 
-        {/* ── Footer ── */}
         <div className="auth-footer">
           {tab === 'register'
-            ? <>Hisobingiz bormi? <a href="#" onClick={() => setTab('login')}>Kirish</a></>
-            : <>Hisobingiz yo'qmi? <a href="#" onClick={() => setTab('register')}>Ro'yxatdan o'tish</a></>
-          }
+            ? <>Hisobingiz bormi? <button type="button" className="auth-link" onClick={() => switchTab('login')}>Kirish</button></>
+            : <>Hisobingiz yo'qmi? <button type="button" className="auth-link" onClick={() => switchTab('register')}>Ro'yxatdan o'tish</button></>}
         </div>
-
       </div>
     </div>
   )

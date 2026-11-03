@@ -275,7 +275,11 @@
   color: var(--txt-2);
   line-height: 1.5;
 }
-.auth-terms input[type="checkbox"] { display: none; }
+/* Ko'rinmaydi, lekin klaviatura bilan tanlash mumkin (display:none fokusni o'chirib qo'yardi) */
+.auth-terms input[type="checkbox"] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; margin: 0;
+}
+.auth-terms input:focus-visible ~ .auth-checkbox { outline: 2px solid var(--p); outline-offset: 2px; }
 
 .auth-checkbox {
   width: 17px; height: 17px; min-width: 17px;
@@ -402,4 +406,37 @@
   .auth-row    { grid-template-columns: 1fr; }
   .auth-socials { grid-template-columns: 1fr; }
   .auth-header h1 { font-size: 1.45rem; }
+}
+
+/* ── Xabarlar va havola-tugma ── */
+.auth-notice {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  font-size: 14px;
+}
+.auth-notice.success { background: #e9f9f0; color: #1b7a45; }
+.auth-notice.info { background: var(--p-light); color: var(--p-dark); }
+
+.auth-link {
+  border: none;
+  background: none;
+  color: var(--p);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.auth-link:hover { text-decoration: underline; }
+
+.auth-submit:disabled { opacity: .7; cursor: wait; }
+
+.auth-input:focus-visible,
+.auth-tab:focus-visible,
+.auth-eye:focus-visible,
+.auth-social:focus-visible,
+.auth-link:focus-visible,
+.auth-submit:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
 }
