@@ -5,15 +5,15 @@ Ushbu loyiha React va zamonaviy CSS yordamida yaratilgan to'laqonli autentifikat
 ## 🚀 Texnologiyalar
 
 - **React 19**
-- **React Router DOM v7**
-- **Axios**
-- **Custom Form Validation**
+- **React Hook Form**
+- **Zod** (sxema bo'yicha tekshiruv)
 - **Vite**
 
 ## 🌟 Imkoniyatlar
 
-- Login va Registratsiya sahifalari
-- Email, parol va telefon raqamlari uchun real-vaqt validatsiyasi
+- Ro'yxatdan o'tish va kirish formalari (bitta sahifada, tablar bilan)
+- Ism, username, email, telefon (+998), yosh va parol uchun Zod sxemasi; xatolar maydondan chiqqanda ko'rsatiladi
+- Parol kuchi ko'rsatkichi, parolni ko'rsatish/yashirish
 - Xatolik xabarlarini foydalanuvchiga qulay ko'rsatish
 - Vercel uchun deploy sozlamalari (`vercel.json`)
 
